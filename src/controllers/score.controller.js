@@ -8,7 +8,7 @@ import { User } from "../models/user.model.js"
 import { Score } from "../models/score.model.js"
 import { addInRedisLB, getRedisLB } from "../middlewares/inMemoryLeaderboard.middleware.js";
 
-// add-score endpoint
+// _ add-score endpoint
 const addScore = asyncHandler(async (req, res) => {
   const t0 = new Date().getTime()
   // get user and score details from front end  
@@ -40,7 +40,7 @@ const addScore = asyncHandler(async (req, res) => {
   // add new-leaders to redis-server which publishes it to all subscribers
   const redisLeaderBoard = addInRedisLB(newLeaders)
   if (!redisLeaderBoard) {
-    throw new ApiError(500, "Error while fetching leaders from redis.")
+    throw new ApiError(500, "Error while adding leaders to redis.")
   }
 
   const t1 = new Date().getTime()
@@ -53,18 +53,36 @@ const addScore = asyncHandler(async (req, res) => {
   )
 })
 
-// view-leaders
-/* const getRecipe = asyncHandler(async(req, res) => {
-  return res
-    .status(200)
-    .json(200, req.user, "Current user fetched successfully")
-
-}) */
-// --------------------------------------------------------------------------
 // view-all-leaders
 const getLeaderboard = async (req, res) => {
   const t0 = new Date().getTime()
   const redisLeaderBoard = await getRedisLB()
+  
+  if (JSON.stringify(redisLeaderBoard) === "{}") {
+    const newLeaders = await Score.find({})?.sort({ score: -1 }).select("username score -_id")
+
+    if (!newLeaders) {
+      throw new ApiError(500, "Error while fetching leaders from db.")
+    }
+    
+    // add new-leaders to redis-server which publishes it to all subscribers
+    addInRedisLB(newLeaders)
+    const redisLeaderBoard = await getRedisLB()
+    /* 
+    if (!redisLeaderBoard) {
+      throw new ApiError(500, "Error while adding leaders to redis.")
+    } */
+
+
+    const t1 = new Date().getTime()
+    const responseTime = `${t1 - t0}ms`
+    console.log(`>>> Source: MongoDB | Response Time: ${responseTime}`);
+    
+    return res
+      .status(200)
+      .json(new ApiResponse(200, redisLeaderBoard, "Fetched LeaderBoard from MongoDB successfully"))
+  }
+
 
   const t1 = new Date().getTime()
   const responseTime = `${t1 - t0}ms`
@@ -176,7 +194,7 @@ const getLeaderboard = async (req, res) => {
           }
         ]
       }
-    }
+    } 
   ])
   if(!user){
     throw new ApiError(400, "User Watch history not found")

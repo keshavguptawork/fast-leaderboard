@@ -9,6 +9,7 @@ import {
 const router = Router()
 
 // http://localhost:3000/api/v1/users/register
+// TODO add JWT for registered users to vote only
 router.route("/add-score").post(addScore) 
 router.route("/leaderboard").get(getLeaderboard)
 
